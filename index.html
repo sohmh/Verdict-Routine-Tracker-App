@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>VERDICT — Quantifying the Quality of Time Spent</title>
+<style>
+/* ── FONT ── */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Jost:wght@300;400;500&display=swap');
+
+/* Try to load Warbler Banner if user has it or if served locally */
+@font-face {
+  font-family: 'WarblerBanner';
+  src: local('Warbler Banner Regular'), local('WarblerBanner-Regular');
+  font-weight: normal;
+}
+
+:root {
+  --bg:       #080808;
+  --bg2:      #0f0f0f;
+  --bg3:      #161616;
+  --border:   #222222;
+  --purple:   #5b21b6;
+  --purple2:  #7c3aed;
+  --purple3:  #a78bfa;
+  --purple4:  #ede9fe;
+  --text:     #e8e8e8;
+  --muted:    #555;
+  --danger:   #7f1d1d;
+  --danger2:  #ef4444;
+  --success:  #064e3b;
+  --success2: #10b981;
+  --display:  'WarblerBanner', 'Cinzel', serif;
+  --body:     'Jost', sans-serif;
+  --radius:   4px;
+  --transition: 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ── LAYOUT ── */
+#app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+/* ── HEADER ── */
+#header {
+  padding: 18px 24px 0;
+  flex-shrink: 0;
+}
+#logo {
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  color: var(--purple3);
+  text-transform: uppercase;
+}
+#logo span { color: var(--muted); font-size: 10px; letter-spacing: 0.15em; display: block; margin-top: 1px; font-family: var(--body); font-weight: 300; }
+
+/* ── NAV ── */
+#nav {
+  display: flex;
+  gap: 0;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nav-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 20px 12px;
+  position: relative;
+  transition: color var(--transition);
+}
+.nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 1px;
+  background: var(--purple2);
+  transform: scaleX(0);
+  transition: transform var(--transition);
+}
+.nav-btn.active { color: var(--purple3); }
+.nav-btn.active::after { transform: scaleX(1); }
+.nav-btn:hover { color: var(--text); }
+
+/* ── PANELS ── */
+#panels { flex: 1; overflow: hidden; position: relative; }
+.panel { display: none; height: 100%; overflow-y: auto; padding: 28px 24px 100px; }
+.panel.active { display: block; }
+
+/* Scrollbar */
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-track { background: transparent; }
+.panel::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 2px; }
+
+/* ── SECTION HEADER ── */
+.section-title {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--purple3);
+  margin-bottom: 20px;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 9px 18px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all var(--transition);
+}
+.btn:hover { border-color: var(--purple2); color: var(--purple3); }
+.btn-primary { background: var(--purple); border-color: var(--purple); color: #fff; }
+.btn-primary:hover { background: var(--purple2); border-color: var(--purple2); color: #fff; }
+.btn-ghost { border-color: transparent; color: var(--muted); }
+.btn-ghost:hover { color: var(--purple3); border-color: transparent; }
+.btn-danger { border-color: var(--danger); color: var(--danger2); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 10px; }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 16px; }
+label { display: block; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+input, textarea, select {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 300;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--transition);
+  -webkit-appearance: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--purple2); }
+textarea { resize: vertical; min-height: 70px; }
+select { cursor: pointer; }
+
+/* ── MODAL ── */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 100;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+#modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: 1px solid var(--purple);
+  width: 100%; max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  padding: 28px;
+}
+.modal::-webkit-scrollbar { width: 3px; }
+.modal::-webkit-scrollbar-thumb { background: var(--purple); }
+.modal-title {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--purple3);
+  margin-bottom: 24px;
+}
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+/* ── ROUTINE CARDS ── */
+.routines-grid { display: flex; flex-direction: column; gap: 14px; }
+.routine-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.routine-card:hover { border-color: var(--purple); }
+.routine-card-head { display: flex; align-items: center; justify-content: space-between; }
+.routine-card-name {
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  color: var(--text);
+}
+.routine-card-meta { font-size: 11px; color: var(--muted); margin-top: 5px; letter-spacing: 0.08em; }
+.routine-card-actions { display: flex; gap: 6px; }
+
+/* ── FLOWCHART ── */
+.flow-container { padding: 10px 0; }
+.flow-node {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--purple2);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 0;
+  position: relative;
+}
+.flow-node-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.flow-node-title {
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+.flow-node-time {
+  font-size: 10px; color: var(--purple3); letter-spacing: 0.1em;
+  white-space: nowrap; padding-top: 1px;
+}
+.flow-node-desc { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.flow-arrow {
+  display: flex; align-items: center; justify-content: center;
+  height: 28px; flex-shrink: 0;
+}
+.flow-arrow svg { color: var(--purple); opacity: 0.6; }
+.flow-node-actions { display: flex; gap: 6px; margin-top: 10px; }
+.flow-add { display: flex; align-items: center; justify-content: center; margin-top: 14px; }
+
+/* ── MY DAY ── */
+.day-select-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+.day-select-row select { max-width: 240px; }
+.day-select-row .date-label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
+.day-tasks { display: flex; flex-direction: column; }
+.day-task {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  position: relative;
+}
+.day-task-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+.connector-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--purple2);
+  background: var(--bg);
+  flex-shrink: 0;
+  margin-top: 18px;
+  transition: all var(--transition);
+}
+.connector-dot.done { background: var(--purple2); border-color: var(--purple2); }
+.connector-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(to bottom, var(--purple), transparent);
+  opacity: 0.3;
+  margin-top: 2px;
+  min-height: 20px;
+}
+.day-task-card {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  transition: all var(--transition);
+}
+.day-task-card.done {
+  border-color: var(--purple);
+  opacity: 0.6;
+}
+.day-task-card-head { display: flex; align-items: flex-start; gap: 12px; }
+.checkbox {
+  width: 18px; height: 18px; border-radius: 3px;
+  border: 1.5px solid var(--border);
+  background: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+  margin-top: 1px;
+}
+.checkbox.checked { background: var(--purple2); border-color: var(--purple2); }
+.checkbox svg { display: none; }
+.checkbox.checked svg { display: block; }
+.day-task-title {
+  font-family: var(--display);
+  font-size: 12px; letter-spacing: 0.12em;
+}
+.day-task-time { font-size: 10px; color: var(--purple3); letter-spacing: 0.1em; margin-left: auto; white-space: nowrap; }
+.day-task-desc { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; padding-left: 30px; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-state-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.3; }
+.empty-state-text { font-size: 12px; letter-spacing: 0.1em; line-height: 1.8; }
+
+/* ── STATS ── */
+.stats-date-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+.stats-date-row input[type=date] { max-width: 180px; }
+
+.score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+.score-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  text-align: center;
+}
+.score-card-label {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.score-card-value {
+  font-family: var(--display);
+  font-size: 28px;
+  letter-spacing: 0.05em;
+  color: var(--purple3);
+  line-height: 1;
+}
+.score-card-value.positive { color: var(--success2); }
+.score-card-value.negative { color: var(--danger2); }
+.score-card-value.neutral { color: var(--muted); }
+.score-card-sub { font-size: 10px; color: var(--muted); margin-top: 6px; letter-spacing: 0.06em; }
+.score-card-verdict {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--purple3);
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+.history-section { margin-top: 10px; }
+.history-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.history-row:last-child { border-bottom: none; }
+.history-date { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+.history-routine { font-size: 11px; color: var(--text); }
+.history-score {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+.history-score.pos { color: var(--success2); }
+.history-score.neg { color: var(--danger2); }
+.history-score.zero { color: var(--muted); }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--purple);
+  color: #fff;
+  padding: 10px 22px;
+  border-radius: 2px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 200;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.25s ease forwards; }
+
+/* ── TASK EDITOR in modal ── */
+.task-list-editor { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.task-editor-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.task-editor-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.task-editor-num {
+  font-family: var(--display);
+  font-size: 10px; color: var(--purple3);
+  letter-spacing: 0.15em;
+  flex-shrink: 0;
+}
+.task-editor-item .form-group { margin-bottom: 10px; }
+.task-editor-item .form-group:last-child { margin-bottom: 0; }
+.task-row { display: grid; grid-template-columns: 1fr 100px; gap: 10px; }
+
+/* ── SCROLLING progress bar ── */
+.progress-bar-wrap { height: 2px; background: var(--border); border-radius: 1px; margin-top: 12px; }
+.progress-bar-fill { height: 100%; background: var(--purple2); border-radius: 1px; transition: width 0.4s ease; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header">
+    <div id="logo">VERDICT <span>Quantifying the quality of time spent</span></div>
+  </div>
+  <nav id="nav">
+    <button class="nav-btn active" onclick="switchPanel('routines')">Routines</button>
+    <button class="nav-btn" onclick="switchPanel('myday')">My Day</button>
+    <button class="nav-btn" onclick="switchPanel('stats')">Stats</button>
+  </nav>
+  <div id="panels">
+
+    <!-- ═══════════════════ ROUTINES PANEL ═══════════════════ -->
+    <div class="panel active" id="panel-routines">
+      <div class="section-title">Your Routines</div>
+      <div style="margin-bottom:20px">
+        <button class="btn btn-primary" onclick="openCreateRoutine()">＋ New Routine</button>
+      </div>
+      <div class="routines-grid" id="routines-list"></div>
+    </div>
+
+    <!-- ═══════════════════ MY DAY PANEL ═══════════════════ -->
+    <div class="panel" id="panel-myday">
+      <div class="section-title">My Day</div>
+      <div class="day-select-row">
+        <select id="day-routine-select" onchange="renderMyDay()">
+          <option value="">— Select a Routine —</option>
+        </select>
+        <span class="date-label" id="today-label"></span>
+      </div>
+      <div style="margin-bottom:18px" id="day-progress-wrap" style="display:none"></div>
+      <div id="day-tasks-container"></div>
+    </div>
+
+    <!-- ═══════════════════ STATS PANEL ═══════════════════ -->
+    <div class="panel" id="panel-stats">
+      <div class="section-title">Performance Stats</div>
+      <div class="stats-date-row">
+        <div class="form-group" style="margin:0">
+          <label>Reference Date</label>
+          <input type="date" id="stats-date" onchange="renderStats()"/>
+        </div>
+      </div>
+      <div class="score-grid" id="score-grid"></div>
+      <div class="divider"></div>
+      <div class="section-title">Day History</div>
+      <div class="history-section" id="history-section"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ MODAL ═══════════════════ -->
+<div id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-title" id="modal-title">Routine</div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  STATE & STORAGE
+// ════════════════════════════════════════════════════
+const STORE = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
+};
+
+let state = {
+  routines: STORE.get('flow_routines') || [],
+  dayLogs:  STORE.get('flow_daylogs')  || {},   // { "YYYY-MM-DD": { routineId, checked: [taskIds...] } }
+};
+
+const save = () => {
+  STORE.set('flow_routines', state.routines);
+  STORE.set('flow_daylogs',  state.dayLogs);
+};
+
+const uid  = () => Math.random().toString(36).slice(2,9);
+const today = () => new Date().toISOString().slice(0,10);
+
+// ════════════════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════════════════
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'myday')  renderMyDay();
+  if (name === 'stats')  renderStats();
+  if (name === 'routines') renderRoutines();
+}
+
+// ════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════════════
+function openModal(title, bodyHTML, actionsHTML) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  document.getElementById('modal-actions').innerHTML = actionsHTML;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOnOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+// ════════════════════════════════════════════════════
+//  ROUTINES PANEL
+// ════════════════════════════════════════════════════
+function renderRoutines() {
+  const el = document.getElementById('routines-list');
+  if (!state.routines.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◈</div><div class="empty-state-text">No routines yet.<br>Create one to get started.</div></div>`;
+    return;
+  }
+  el.innerHTML = state.routines.map(r => `
+    <div class="routine-card fade-in" onclick="openViewRoutine('${r.id}')">
+      <div class="routine-card-head">
+        <div>
+          <div class="routine-card-name">${escHtml(r.name)}</div>
+          <div class="routine-card-meta">${r.tasks.length} task${r.tasks.length!==1?'s':''}</div>
+        </div>
+        <div class="routine-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm" onclick="openEditRoutine('${r.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRoutine('${r.id}')">✕</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCreateRoutine() {
+  openModal('New Routine', buildRoutineForm(null),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRoutineFromModal(null)">Create</button>`
+  );
+  syncTaskEditorCount();
+}
+
+function openEditRoutine(id) {
+  const r = state.routines.find(x=>x.id===id);
+  openModal('Edit Routine', buildRoutineForm(r),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRoutineFromModal('${id}')">Save</button>`
+  );
+  syncTaskEditorCount();
+}
+
+function buildRoutineForm(r) {
+  const tasks = r ? r.tasks : [];
+  return `
+    <div class="form-group">
+      <label>Routine Title</label>
+      <input type="text" id="rf-name" placeholder="e.g. Weekday Routine" value="${r ? escAttr(r.name) : ''}"/>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:12px">Tasks (in sequence)</div>
+    <div class="task-list-editor" id="task-list-editor">
+      ${tasks.map((t,i) => buildTaskEditorItem(t,i)).join('')}
+    </div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:4px" onclick="addTaskEditorItem()">＋ Add Task</button>
+  `;
+}
+
+function buildTaskEditorItem(t, i) {
+  return `
+    <div class="task-editor-item" id="tei-${t ? t.id : 'new'+i}">
+      <div class="task-editor-header">
+        <span class="task-editor-num">${String(i+1).padStart(2,'0')}</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--danger2)" onclick="removeTaskEditorItem(this)">✕</button>
+      </div>
+      <div class="task-row">
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" class="tei-title" placeholder="Task title" value="${t ? escAttr(t.title) : ''}"/>
+        </div>
+        <div class="form-group">
+          <label>Duration</label>
+          <input type="text" class="tei-time" placeholder="e.g. 30 min" value="${t ? escAttr(t.time) : ''}"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Start Time</label>
+        <input type="time" class="tei-start" value="${t ? escAttr(t.start||'') : ''}"/>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea class="tei-desc" placeholder="What does this task involve?">${t ? escHtml(t.desc) : ''}</textarea>
+      </div>
+    </div>
+  `;
+}
+
+let _taskCounter = 100;
+function addTaskEditorItem() {
+  const editor = document.getElementById('task-list-editor');
+  const idx = editor.children.length;
+  const div = document.createElement('div');
+  div.innerHTML = buildTaskEditorItem({id:'n'+(++_taskCounter),title:'',time:'',start:'',desc:''},idx);
+  editor.appendChild(div.firstElementChild);
+  syncTaskEditorCount();
+}
+function removeTaskEditorItem(btn) {
+  btn.closest('.task-editor-item').remove();
+  syncTaskEditorCount();
+}
+function syncTaskEditorCount() {
+  document.querySelectorAll('.task-editor-item .task-editor-num').forEach((el,i)=>{
+    el.textContent = String(i+1).padStart(2,'0');
+  });
+}
+
+function saveRoutineFromModal(id) {
+  const name = document.getElementById('rf-name').value.trim();
+  if (!name) { toast('Please enter a routine title'); return; }
+  const items = document.querySelectorAll('#task-list-editor .task-editor-item');
+  const tasks = Array.from(items).map(el => ({
+    id:    el.id.replace('tei-',''),
+    title: el.querySelector('.tei-title').value.trim(),
+    time:  el.querySelector('.tei-time').value.trim(),
+    start: el.querySelector('.tei-start').value.trim(),
+    desc:  el.querySelector('.tei-desc').value.trim(),
+  })).filter(t => t.title);
+
+  if (id) {
+    const r = state.routines.find(x=>x.id===id);
+    r.name = name; r.tasks = tasks;
+  } else {
+    state.routines.push({ id: uid(), name, tasks });
+  }
+  save(); closeModal(); renderRoutines();
+  toast(id ? 'Routine updated' : 'Routine created');
+}
+
+function deleteRoutine(id) {
+  if (!confirm('Delete this routine?')) return;
+  state.routines = state.routines.filter(x=>x.id!==id);
+  save(); renderRoutines(); toast('Routine deleted');
+}
+
+function openViewRoutine(id) {
+  const r = state.routines.find(x=>x.id===id);
+  if (!r) return;
+  const body = `
+    <div class="flow-container">
+      ${r.tasks.length ? r.tasks.map((t,i) => `
+        ${i>0?`<div class="flow-arrow"><svg width="16" height="20" viewBox="0 0 16 20" fill="none"><path d="M8 0v16M8 16l-5-5M8 16l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>`:''}
+        <div class="flow-node">
+          <div class="flow-node-header">
+            <div>
+              <div style="font-size:9px;color:var(--muted);letter-spacing:0.15em;margin-bottom:3px">${String(i+1).padStart(2,'0')}</div>
+              <div class="flow-node-title">${escHtml(t.title)}</div>
+            </div>
+            ${(t.start||t.time)?`<div class="flow-node-time">${t.start?'🕐 '+fmt12(t.start):''}${t.start&&t.time?' · ':''}${t.time?'⏱ '+escHtml(t.time):''}</div>`:''}
+          </div>
+          ${t.desc?`<div class="flow-node-desc">${escHtml(t.desc)}</div>`:''}
+        </div>
+      `).join('') : `<div class="empty-state"><div class="empty-state-text">No tasks yet.</div></div>`}
+    </div>
+  `;
+  openModal(r.name, body,
+    `<button class="btn" onclick="closeModal()">Close</button>
+     <button class="btn btn-primary" onclick="closeModal();openEditRoutine('${r.id}')">Edit</button>`
+  );
+}
+
+// ════════════════════════════════════════════════════
+//  MY DAY PANEL
+// ════════════════════════════════════════════════════
+function initMyDay() {
+  const todayStr = today();
+  document.getElementById('today-label').textContent = formatDate(todayStr);
+  document.getElementById('stats-date').value = todayStr;
+  populateDaySelect();
+}
+
+function populateDaySelect() {
+  const sel = document.getElementById('day-routine-select');
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">— Select a Routine —</option>` +
+    state.routines.map(r => `<option value="${r.id}" ${r.id===cur?'selected':''}>${escHtml(r.name)}</option>`).join('');
+
+  // restore today's saved selection
+  const log = state.dayLogs[today()];
+  if (log && log.routineId && !cur) {
+    sel.value = log.routineId;
+  }
+}
+
+function renderMyDay() {
+  const sel = document.getElementById('day-routine-select');
+  const routineId = sel.value;
+  const container = document.getElementById('day-tasks-container');
+  const progressWrap = document.getElementById('day-progress-wrap');
+
+  if (!routineId) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">☽</div><div class="empty-state-text">Select a routine above<br>to begin your day.</div></div>`;
+    progressWrap.innerHTML = '';
+    return;
+  }
+
+  const r = state.routines.find(x=>x.id===routineId);
+  if (!r) return;
+
+  const todayStr = today();
+  // init or update log
+  if (!state.dayLogs[todayStr] || state.dayLogs[todayStr].routineId !== routineId) {
+    state.dayLogs[todayStr] = { routineId, checked: [] };
+    save();
+  }
+  const log = state.dayLogs[todayStr];
+  const total = r.tasks.length;
+  const done  = log.checked.length;
+
+  progressWrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:10px;color:var(--muted);letter-spacing:0.1em">${done} / ${total} complete</span>
+      ${done===total&&total>0?`<span style="font-size:10px;color:var(--success2);letter-spacing:0.1em">✓ All done</span>`:''}
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${total?Math.round(done/total*100):0}%"></div></div>
+  `;
+
+  if (!r.tasks.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-text">This routine has no tasks.</div></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="day-tasks" id="day-tasks-inner">${
+    r.tasks.map((t,i) => {
+      const isChecked = log.checked.includes(t.id);
+      const isLast = i===r.tasks.length-1;
+      return `
+        <div class="day-task">
+          <div class="day-task-connector">
+            <div class="connector-dot${isChecked?' done':''}"></div>
+            ${!isLast?`<div class="connector-line"></div>`:''}
+          </div>
+          <div class="day-task-card${isChecked?' done':''}">
+            <div class="day-task-card-head">
+              <div class="checkbox${isChecked?' checked':''}" onclick="toggleTask('${routineId}','${t.id}')">
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span class="day-task-title" style="${isChecked?'text-decoration:line-through;opacity:0.5':''}">
+                ${String(i+1).padStart(2,'0')} · ${escHtml(t.title)}
+              </span>
+              ${(t.start||t.time)?`<span class="day-task-time">${t.start?'🕐 '+fmt12(t.start):''}${t.start&&t.time?' · ':''}${t.time?'⏱ '+escHtml(t.time):''}</span>`:''}
+            </div>
+            ${t.desc?`<div class="day-task-desc" style="${isChecked?'opacity:0.4':''}">${escHtml(t.desc)}</div>`:''}
+          </div>
+        </div>
+      `;
+    }).join('')
+  }</div>`;
+}
+
+function toggleTask(routineId, taskId) {
+  const todayStr = today();
+  const log = state.dayLogs[todayStr];
+  if (!log) return;
+  const idx = log.checked.indexOf(taskId);
+  if (idx > -1) log.checked.splice(idx,1);
+  else log.checked.push(taskId);
+  save();
+  renderMyDay();
+  // re-render stats if open
+}
+
+// ════════════════════════════════════════════════════
+//  STATS PANEL
+// ════════════════════════════════════════════════════
+function dayScore(dateStr) {
+  const log = state.dayLogs[dateStr];
+  if (!log || !log.routineId) return null;
+  const r = state.routines.find(x=>x.id===log.routineId);
+  if (!r) return null;
+  const t = r.tasks.length;
+  if (t === 0) return null;
+  const p = Math.min(log.checked.length, t);
+  const n = t - p;                          // incomplete tasks
+
+  // D = (p/t)^(1 + n/t) × 10
+  //
+  // How it works:
+  //   • Base signal is the completion ratio p/t (0–1), scaled to 0–10.
+  //   • The exponent (1 + n/t) acts as a dynamic penalty: the more tasks
+  //     you leave incomplete as a *fraction* of the total, the harder
+  //     the score is pulled down from the ceiling.
+  //   • A perfect day (n=0): exponent = 1, score = (p/t)^1 × 10 = 10.
+  //   • A day with 50% incomplete: exponent = 1.5, score = 0.5^1.5 × 10 ≈ 3.5
+  //   • A day with 80% done (8/10 vs 4/5): both ratio = 0.8, but
+  //     8/10 has n/t = 0.2 → exponent 1.2 → score ≈ 7.3
+  //     4/5  has n/t = 0.2 → same ratio & exponent → same score (by design — 
+  //     the penalty already captures relative incompleteness fairly)
+  //   • Score is always in [0, 10], maps cleanly onto verdict titles.
+  const exponent = 1 + (n / t);
+  const score = Math.pow(p / t, exponent) * 10;
+  return Math.round(score * 10) / 10;
+}
+
+function weekScore(dateStr) {
+  // Find Monday of the week containing dateStr
+  const dt = new Date(dateStr + 'T00:00:00');
+  const day = dt.getDay(); // 0=Sun
+  const diffToMon = (day + 6) % 7;
+  const scores = [];
+  for (let i=0;i<7;i++) {
+    const d = new Date(dt);
+    d.setDate(dt.getDate() - diffToMon + i);
+    const dStr = d.toISOString().slice(0,10);
+    const s = dayScore(dStr);
+    if (s !== null) scores.push(s);
+  }
+  if (!scores.length) return null;
+  return scores.reduce((a,b)=>a+b,0)/7;
+}
+
+function monthScore(dateStr) {
+  const [y,m] = dateStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const scores = [];
+  for (let d=1;d<=daysInMonth;d++) {
+    const dStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const s = dayScore(dStr);
+    if (s !== null) scores.push(s);
+  }
+  if (!scores.length) return null;
+  return scores.reduce((a,b)=>a+b,0)/daysInMonth;
+}
+
+function yearScore(dateStr) {
+  const y = parseInt(dateStr.slice(0,4));
+  const monthScores = [];
+  for (let m=1;m<=12;m++) {
+    const ms = monthScore(`${y}-${String(m).padStart(2,'0')}-01`);
+    if (ms !== null) monthScores.push(ms);
+  }
+  if (!monthScores.length) return null;
+  return monthScores.reduce((a,b)=>a+b,0)/12;
+}
+
+function fmtScore(s) {
+  if (s === null) return '—';
+  return s.toFixed(1);
+}
+function scoreClass(s) {
+  if (s === null) return 'neutral';
+  if (s >= 7)  return 'positive';
+  if (s >= 4)  return 'neutral';
+  return 'negative';
+}
+
+function renderStats() {
+  const dateStr = document.getElementById('stats-date').value || today();
+  const D = dayScore(dateStr);
+  const W = weekScore(dateStr);
+  const M = monthScore(dateStr);
+  const Y = yearScore(dateStr);
+
+  document.getElementById('score-grid').innerHTML = [
+    {label:'Day Score',   sub:'(p/t)^(1+n/t) × 10',        val: D},
+    {label:'Week Score',  sub:'W = Σ(daily) / 7',            val: W},
+    {label:'Month Score', sub:'M = Σ(daily) / days',         val: M},
+    {label:'Year Score',  sub:'Y = Σ(monthly) / 12',         val: Y},
+  ].map(s=>`
+    <div class="score-card">
+      <div class="score-card-label">${s.label}</div>
+      <div class="score-card-value ${scoreClass(s.val)}">${fmtScore(s.val)}</div>
+      ${scoreTitle(s.val)?`<div class="score-card-verdict">${scoreTitle(s.val)}</div>`:''}
+      <div class="score-card-sub">${s.sub}</div>
+    </div>
+  `).join('');
+
+  // History: all logged days sorted desc
+  const entries = Object.entries(state.dayLogs)
+    .filter(([d,log])=>log&&log.routineId)
+    .sort(([a],[b])=>b.localeCompare(a))
+    .slice(0,30);
+
+  if (!entries.length) {
+    document.getElementById('history-section').innerHTML = `<div class="empty-state"><div class="empty-state-text">No data yet.<br>Complete your first day to see history.</div></div>`;
+    return;
+  }
+
+  document.getElementById('history-section').innerHTML = entries.map(([d, log]) => {
+    const r = state.routines.find(x=>x.id===log.routineId);
+    const s = dayScore(d);
+    return `
+      <div class="history-row">
+        <span class="history-date">${formatDate(d)}</span>
+        <span class="history-routine">${r ? escHtml(r.name) : 'Deleted'}</span>
+        <span class="history-score ${s>=7?'pos':s>=4?'zero':'neg'}">${fmtScore(s)}${scoreTitle(s)?` · ${scoreTitle(s)}`:''}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════
+function escHtml(s='') {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s='') { return String(s).replace(/"/g,'&quot;'); }
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+}
+// Convert 24h "HH:MM" to "h:MM AM/PM"
+function fmt12(t) {
+  if (!t) return '';
+  const [hh,mm] = t.split(':').map(Number);
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  const h = hh % 12 || 12;
+  return `${h}:${String(mm).padStart(2,'0')} ${ampm}`;
+}
+// Map a continuous 0–10 score to a verdict title
+const SCORE_TITLES = [
+  {min: 0,   title: 'Abysmal'},
+  {min: 1.5, title: 'Dismal'},
+  {min: 2.5, title: 'Miserable'},
+  {min: 3.5, title: 'Lackluster'},
+  {min: 4.5, title: 'Mediocre'},
+  {min: 5.5, title: 'Decent'},
+  {min: 6.5, title: 'Pleasant'},
+  {min: 7.5, title: 'Gratifying'},
+  {min: 8.5, title: 'Exhilarating'},
+  {min: 9.5, title: 'Transcendent'},
+];
+function scoreTitle(s) {
+  if (s === null) return '';
+  let result = '';
+  for (const tier of SCORE_TITLES) {
+    if (s >= tier.min) result = tier.title;
+    else break;
+  }
+  return result;
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+(function init() {
+  renderRoutines();
+  initMyDay();
+  renderMyDay();
+})();
+</script>
+</body>
+</html>
